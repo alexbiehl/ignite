@@ -93,17 +93,8 @@ test_monotonic = do
   heap <- newHeap 1
   alist <- newArrayList heap 20 :: IO (ArrayList Int)
 
-  size <- arrayListSize alist
-  print size
-
-  cap <- arrayListCapacity alist
-  print cap
-
-  for_ [1..19] $ \i ->
+  for_ [1..20] $ \i ->
     arrayListAppend heap alist i
-
-  size <- arrayListSize alist
-  print size
 
   for_ [0..19] $ \i -> do
     x <- arrayListIndex alist i
