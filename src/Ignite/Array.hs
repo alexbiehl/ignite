@@ -7,6 +7,7 @@ import Ignite.Layout
 import Control.Monad.Primitive
 import Data.Proxy
 import Foreign.Ptr
+import Foreign.Marshal.Utils (copyBytes)
 import Foreign.Storable (peekElemOff, pokeElemOff)
 
 -- | A sequence of elements.
@@ -69,3 +70,20 @@ arrayUnsafeWrite (Array op) index elem =
     elemSize = size (Proxy :: Proxy elem)
     lenSize  = size (Proxy :: Proxy Int)
 {-# INLINE arrayUnsafeWrite #-}
+
+unsafeArrayCopy
+  :: forall m elem . (PrimMonad m, Layout elem)
+  => Array elem
+  -> Int
+  -> Array elem
+  -> Int
+  -> Int
+  -> m ()
+unsafeArrayCopy (Array src) srcOff (Array dest) destOff len =
+  unsafeIOToPrim (copyBytes
+                   (dest `plusPtr` (lenSize + destOff * elemSize))
+                   (src  `plusPtr` (lenSize + srcOff * elemSize))
+                   (len * elemSize))
+  where
+    elemSize = size (Proxy :: Proxy elem)
+    lenSize  = size (Proxy :: Proxy Int)
