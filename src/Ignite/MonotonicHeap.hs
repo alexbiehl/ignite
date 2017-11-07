@@ -1,6 +1,11 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Ignite.MonotonicHeap where
+module Ignite.MonotonicHeap (
+    Heap
+  , withHeap
+  , allocStruct
+  , allocArray
+  ) where
 
 import Ignite.Layout
 import Ignite.Array
@@ -17,12 +22,17 @@ import qualified Foreign.Storable as Storable
 
 import GHC.Ptr
 
+-- | A very simple and inefficient heap which allocates a
+-- new pinned 'ByteArray' for each allocation. It never
+-- releases any memory.
 data Heap m root = Heap {
     heapBlockSize :: !Int
   , heapRoot      :: !(MutVar (PrimState m) (Ptr root))
   , heapBlocks    :: !(MutVar (PrimState m) [ByteArray])
   }
 
+-- | Create a new heap and pass it to the given function.
+-- Makes sure to keep the 'Heap' alive.
 withHeap :: PrimMonad m => (Heap m root -> m a) -> m a
 withHeap f = do
   heap <- newHeap 1
@@ -44,6 +54,8 @@ newHeap blockSize = do
 
   return heap
 
+-- | Allocate a new 'Struct' on the given Heap. Basically creates
+-- a new pinned 'ByteArray' for each allocation.
 allocStruct
   :: forall m struct fields root .
      ( PrimMonad m

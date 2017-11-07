@@ -81,6 +81,7 @@ type family FieldType (field :: Symbol) (fields :: Type) :: Type where
 
 data Selector (field :: Symbol) fieldType struct = Selector
 
+-- | Reads the value of a field.
 readField
   :: forall field fields fieldType struct m .
      ( PrimMonad m
@@ -88,9 +89,9 @@ readField
      , fieldType ~ FieldType field struct
      , Layout fieldType
      )
-  => Selector field fieldType struct
-  -> Struct fields
-  -> m fieldType
+  => Selector field fieldType struct -- ^ field selector
+  -> Struct fields                   -- ^ struct from which to read
+  -> m fieldType                     -- ^ the read value
 readField _ (Struct op) = peek (castPtr op) offset
   where
     offset = fieldOffset (Proxy :: Proxy field) (Proxy :: Proxy struct)
@@ -102,9 +103,9 @@ writeField
      , fieldType ~ FieldType field struct
      , Layout fieldType
      )
-  => Selector field fieldType struct
-  -> Struct fields
-  -> fieldType
+  => Selector field fieldType struct -- ^ field selector
+  -> Struct fields                   -- ^ struct to which to write
+  -> fieldType                       -- ^ the value to be written
   -> m ()
 writeField _ (Struct op) a = poke (castPtr op) offset a
   where

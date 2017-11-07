@@ -11,8 +11,9 @@ import Foreign.Marshal.Utils (copyBytes)
 import Foreign.Storable (peekElemOff, pokeElemOff)
 
 -- | A sequence of elements.
---    * 'Array's know their lengths
---    * 'Array's support indexing in constant time
+--
+--    - 'Array's know their lengths
+--    - 'Array's support indexing in constant time
 newtype Array elem = Array { getArray :: Ptr (Array elem) }
 
 instance Layout (Array elem) where
@@ -34,6 +35,8 @@ arrayLength :: PrimMonad m => Array elem -> m Int
 arrayLength (Array op) = peek (castPtr op) 0
 {-# INLINE arrayLength #-}
 
+-- | 'arrayUnsafeWithElems' allows to access the low-level memory
+-- representation of the array.
 arrayUnsafeWithElems
   :: forall m a elem . (PrimMonad m, Layout elem)
   => Array elem
@@ -58,6 +61,7 @@ arrayUnsafeIndex (Array op) index =
     lenSize  = size (Proxy :: Proxy Int)
 {-# INLINE arrayUnsafeIndex #-}
 
+-- | Write an element at a specific index. No bounds checking is performed.
 arrayUnsafeWrite
   :: forall m elem . (PrimMonad m, Layout elem)
   => Array elem
@@ -71,6 +75,7 @@ arrayUnsafeWrite (Array op) index elem =
     lenSize  = size (Proxy :: Proxy Int)
 {-# INLINE arrayUnsafeWrite #-}
 
+-- | Copies one array into the other.
 unsafeArrayCopy
   :: forall m elem . (PrimMonad m, Layout elem)
   => Array elem
