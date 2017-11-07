@@ -87,3 +87,4 @@ unsafeArrayCopy (Array src) srcOff (Array dest) destOff len =
   where
     elemSize = size (Proxy :: Proxy elem)
     lenSize  = size (Proxy :: Proxy Int)
+{-# INLINE unsafeArrayCopy #-}

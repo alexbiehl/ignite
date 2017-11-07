@@ -65,7 +65,19 @@ arrayListAppend heap alist elem = do
   if size < cap
     then do arrayUnsafeWrite arr size elem
             writeField arrayListSizeSelector alist (size + 1)
-    else undefined
+    else arrayListResize heap alist >> arrayListAppend heap alist elem
+
+arrayListResize
+  :: forall m root elem . (PrimMonad m, Layout elem)
+  => Heap m root
+  -> ArrayList elem
+  -> m ()
+arrayListResize heap alist = do
+  size <- arrayListSize alist
+  newArr <- allocArray heap (Proxy :: Proxy elem) (2 * size)
+  oldArr <- readField arrayListElemsSelector alist
+  unsafeArrayCopy oldArr 0 newArr 0 size
+  writeField arrayListElemsSelector alist newArr
 
 arrayListIndex
   :: forall m elem . (PrimMonad m, Layout elem)
