@@ -6,9 +6,9 @@ module Ignite.Layout where
 
 import Control.Monad.Primitive
 import Data.Proxy
+import Data.Word (Word8, Word16, Word32, Word64)
 import Foreign.Ptr
 import qualified Foreign.Storable as Storable
-
 
 -- | A layout defines the in-memory representation for a value.
 class Layout a where
@@ -74,3 +74,15 @@ instance Layout Float where
 
 instance Layout Bool where
   type Rep Bool = Bool
+
+instance Layout Word8 where
+  type Rep Word8 = Word8
+
+instance Layout Word16 where
+  type Rep Word16 = Word16
+
+instance Layout Word32 where
+  type Rep Word32 = Word32
+
+instance Layout Word64 where
+  type Rep Word64 = Word64

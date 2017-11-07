@@ -33,6 +33,16 @@ arrayLength :: PrimMonad m => Array elem -> m Int
 arrayLength (Array op) = peek (castPtr op) 0
 {-# INLINE arrayLength #-}
 
+arrayUnsafeWithElems
+  :: forall m a elem . (PrimMonad m, Layout elem)
+  => Array elem
+  -> (Int -> Ptr (Rep elem) -> m a)
+  -> m a
+arrayUnsafeWithElems a@(Array op) f = do
+  len <- arrayLength a
+  f len (op `plusPtr` size (Proxy :: Proxy Int))
+{-# INLINE arrayUnsafeWithElems #-}
+
 -- | Indexes into the array. No bound checks are performed. This is a
 -- constant time operation.
 arrayUnsafeIndex
