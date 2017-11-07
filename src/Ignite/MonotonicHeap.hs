@@ -13,6 +13,7 @@ import Data.Primitive.MutVar
 import Data.Primitive.Types
 import Data.Proxy
 import Foreign.Ptr
+import qualified Foreign.Storable as Storable
 
 import GHC.Ptr
 
@@ -68,6 +69,8 @@ allocArray heap _ n = do
   ba <- unsafeFreezeByteArray mba
   modifyMutVar' (heapBlocks heap) (\s -> ba : s)
   let Addr mem = byteArrayContents ba
-  return (Array (Ptr mem))
+      op = Ptr mem
+  unsafeIOToPrim (Storable.poke (castPtr op) (0 :: Int))
+  return (Array op)
   where
     bytes = size (Proxy :: Proxy Int) + n * size (Proxy :: Proxy elem)

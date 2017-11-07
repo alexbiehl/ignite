@@ -62,10 +62,10 @@ arrayListAppend heap alist elem = do
   cap  <- arrayListCapacity alist
   arr  <- readField arrayListElemsSelector alist
 
-  if size == cap
-    then undefined -- resize
-    else do arrayUnsafeWrite arr size elem
+  if size < cap
+    then do arrayUnsafeWrite arr size elem
             writeField arrayListSizeSelector alist (size + 1)
+    else undefined
 
 arrayListIndex
   :: forall m elem . (PrimMonad m, Layout elem)
@@ -76,21 +76,28 @@ arrayListIndex alist i = do
   arr  <- readField arrayListElemsSelector alist
   arrayUnsafeIndex arr i
 
-test_monotonic :: IO ()
+test_monotonic :: IO (Heap IO Int)
 test_monotonic = do
   heap <- newHeap 1
   alist <- newArrayList heap 20 :: IO (ArrayList Int)
 
-  for_ [1..20] $ \i ->
+  size <- arrayListSize alist
+  print size
+
+  cap <- arrayListCapacity alist
+  print cap
+
+  for_ [1..19] $ \i ->
     arrayListAppend heap alist i
 
-  arrayListAppend heap alist 1
+  size <- arrayListSize alist
+  print size
 
   for_ [0..19] $ \i -> do
     x <- arrayListIndex alist i
     print x
 
-  return ()
+  return heap
 
 test :: ArrayList elem -> IO (Array elem)
 test = readField arrayListElemsSelector
