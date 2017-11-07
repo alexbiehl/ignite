@@ -16,8 +16,7 @@ extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:   Ignite.Types.Structs
-                     Ignite.Array
+  exposed-modules:   Ignite.Array
                      Ignite.ByteArray
                      Ignite.Layout
                      Ignite.Struct
