@@ -1,0 +1,1 @@
+module Ignite.Struct where
