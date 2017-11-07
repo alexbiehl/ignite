@@ -90,13 +90,12 @@ arrayListIndex alist i = do
 
 test_monotonic :: IO ()
 test_monotonic = withHeap $ \heap -> do
-  heap <- newHeap 1
   alist <- newArrayList heap 20 :: IO (ArrayList Int)
 
-  for_ [1..20] $ \i ->
+  for_ [1..25] $ \i ->
     arrayListAppend heap alist i
 
-  for_ [0..19] $ \i -> do
+  for_ [0..24] $ \i -> do
     x <- arrayListIndex alist i
     print x
 
