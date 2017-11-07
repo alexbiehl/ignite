@@ -1,0 +1,73 @@
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+module Ignite.MonotonicHeap where
+
+import Ignite.Layout
+import Ignite.Array
+import Ignite.Struct
+
+import Control.Monad.Primitive
+import Data.IORef
+import Data.Primitive.ByteArray
+import Data.Primitive.MutVar
+import Data.Primitive.Types
+import Data.Proxy
+import Foreign.Ptr
+
+import GHC.Ptr
+
+data Heap m root = Heap {
+    heapBlockSize :: !Int
+  , heapRoot      :: !(MutVar (PrimState m) (Ptr root))
+  , heapBlocks    :: !(MutVar (PrimState m) [ByteArray])
+  }
+
+newHeap :: PrimMonad m => Int -> m (Heap m root)
+newHeap blockSize = do
+
+  rootRef  <- newMutVar nullPtr
+  blockRef <- newMutVar []
+
+  let heap =
+        Heap { heapRoot = rootRef
+             , heapBlockSize = blockSize
+             , heapBlocks = blockRef
+             }
+
+  return heap
+
+allocStruct
+  :: forall m struct fields root .
+     ( PrimMonad m
+     , StructSize struct
+     , struct ~ Struct fields
+     )
+  => Heap m root
+  -> Proxy (Struct fields)
+  -> m (Struct fields)
+allocStruct heap _ = do
+  mba <- newPinnedByteArray size
+  ba <- unsafeFreezeByteArray mba
+  modifyMutVar' (heapBlocks heap) (\s -> ba : s)
+  let Addr mem = byteArrayContents ba
+  return (Struct (Ptr mem))
+  where
+    size = structSize (Proxy :: Proxy struct)
+
+allocArray
+  :: forall m elem root .
+     ( PrimMonad m
+     , Layout elem
+     )
+  => Heap m root
+  -> Proxy elem
+  -> Int
+  -> m (Array elem)
+allocArray heap _ n = do
+  mba <- newPinnedByteArray bytes
+  ba <- unsafeFreezeByteArray mba
+  modifyMutVar' (heapBlocks heap) (\s -> ba : s)
+  let Addr mem = byteArrayContents ba
+  return (Array (Ptr mem))
+  where
+    bytes = size (Proxy :: Proxy Int) + n * size (Proxy :: Proxy elem)
