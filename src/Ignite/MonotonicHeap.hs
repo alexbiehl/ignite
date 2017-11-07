@@ -23,6 +23,13 @@ data Heap m root = Heap {
   , heapBlocks    :: !(MutVar (PrimState m) [ByteArray])
   }
 
+withHeap :: PrimMonad m => (Heap m root -> m a) -> m a
+withHeap f = do
+  heap <- newHeap 1
+  r <- f heap
+  touch heap
+  return r
+
 newHeap :: PrimMonad m => Int -> m (Heap m root)
 newHeap blockSize = do
 
@@ -70,7 +77,7 @@ allocArray heap _ n = do
   modifyMutVar' (heapBlocks heap) (\s -> ba : s)
   let Addr mem = byteArrayContents ba
       op = Ptr mem
-  unsafeIOToPrim (Storable.poke (castPtr op) (0 :: Int))
+  unsafeIOToPrim (Storable.poke (castPtr op) (n :: Int))
   return (Array op)
   where
     bytes = size (Proxy :: Proxy Int) + n * size (Proxy :: Proxy elem)
