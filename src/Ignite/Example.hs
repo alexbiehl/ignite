@@ -88,8 +88,8 @@ arrayListIndex alist i = do
   arr  <- readField arrayListElemsSelector alist
   arrayUnsafeIndex arr i
 
-test_monotonic :: IO (Heap IO Int)
-test_monotonic = do
+test_monotonic :: IO ()
+test_monotonic = withHeap $ \heap -> do
   heap <- newHeap 1
   alist <- newArrayList heap 20 :: IO (ArrayList Int)
 
@@ -99,8 +99,6 @@ test_monotonic = do
   for_ [0..19] $ \i -> do
     x <- arrayListIndex alist i
     print x
-
-  return heap
 
 test :: ArrayList elem -> IO (Array elem)
 test = readField arrayListElemsSelector
