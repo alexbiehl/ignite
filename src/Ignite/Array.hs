@@ -39,10 +39,23 @@ arrayUnsafeIndex
   :: forall m elem . (PrimMonad m, Layout elem)
   => Array elem
   -> Int
-  -> m (Rep elem)
+  -> m elem
 arrayUnsafeIndex (Array op) index =
   peek (castPtr op) (lenSize + elemSize * index)
   where
-    elemSize = size (Proxy :: Proxy (Rep elem))
-    lenSize  = size (Proxy :: Proxy (Rep Int))
+    elemSize = size (Proxy :: Proxy elem)
+    lenSize  = size (Proxy :: Proxy Int)
 {-# INLINE arrayUnsafeIndex #-}
+
+arrayUnsafeWrite
+  :: forall m elem . (PrimMonad m, Layout elem)
+  => Array elem
+  -> Int
+  -> elem
+  -> m ()
+arrayUnsafeWrite (Array op) index elem =
+  poke (castPtr op) (lenSize + elemSize * index) elem
+  where
+    elemSize = size (Proxy :: Proxy elem)
+    lenSize  = size (Proxy :: Proxy Int)
+{-# INLINE arrayUnsafeWrite #-}

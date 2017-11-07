@@ -2,7 +2,6 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilyDependencies #-}
 module Ignite.Layout where
 
 import Control.Monad.Primitive
@@ -15,16 +14,16 @@ import qualified Foreign.Storable as Storable
 class Layout a where
 
   -- | Type of the in-memory representation
-  type family Rep a = r | r -> a
+  type family Rep a
 
   -- | Determines the size of the representation
   size
-   :: Proxy (Rep a)
+   :: Proxy a
    -> Int
 
   default size
     :: Storable.Storable (Rep a)
-    => Proxy (Rep a)
+    => Proxy a
     -> Int
   size _ = Storable.sizeOf (undefined :: Rep a)
   {-# INLINE size #-}
@@ -32,31 +31,31 @@ class Layout a where
   -- | Reads a value from a pointer and an offset
   peek
     :: PrimMonad m
-    => Ptr (Rep a)
+    => Ptr a
     -> Int
-    -> m (Rep a)
+    -> m a
 
   default peek
-    :: (PrimMonad m, Storable.Storable (Rep a))
-    => Ptr (Rep a)
+    :: (PrimMonad m, a ~ Rep a, Storable.Storable (Rep a))
+    => Ptr a
     -> Int
-    -> m (Rep a)
+    -> m a
   peek op off = unsafeIOToPrim (Storable.peekByteOff op off)
   {-# INLINE peek #-}
 
   -- | Writes a values to pointer at offset.
   poke
     :: PrimMonad m
-    => Ptr (Rep a)
+    => Ptr a
     -> Int
-    -> (Rep a)
+    -> a
     -> m ()
 
   default poke
-    :: (PrimMonad m, Storable.Storable (Rep a))
-    => Ptr (Rep a)
+    :: (PrimMonad m, a ~ Rep a, Storable.Storable (Rep a))
+    => Ptr a
     -> Int
-    -> (Rep a)
+    -> a
     -> m ()
   poke op off a = unsafeIOToPrim (Storable.pokeByteOff op off a)
   {-# INLINE poke #-}
