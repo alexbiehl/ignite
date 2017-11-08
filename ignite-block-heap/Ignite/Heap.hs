@@ -169,10 +169,10 @@ allocArray (Heap allocator) elem n = do
 
 withHeap :: PrimMonad m => Int -> (Heap m root -> m a) -> m a
 withHeap blockSize f = do
-  let blockSize' = max blockSize blockHeaderSize
-  op    <- allocRawMemory blockSize'
+  -- the first block needs some space for the allocator
+  op    <- allocRawMemory (max blockSize (blockHeaderSize + allocatorSize))
   block <- unsafeBlockFromPointer op nullBlock
-  allocator <- bootstrapAllocator blockSize' block
+  allocator <- bootstrapAllocator (max blockSize blockHeaderSize) block
   r <- f (Heap allocator)
   -- FIXME: deallocate the heap
   -- FIXME: exception safety
