@@ -11,7 +11,7 @@ module Ignite.Example where
 import Ignite.Layout
 import Ignite.Array
 import Ignite.Struct
-import Ignite.MonotonicHeap
+import Ignite.BlockHeap
 
 import Control.Monad.Primitive
 import Data.Proxy
@@ -89,7 +89,7 @@ arrayListIndex alist i = do
   arrayUnsafeIndex arr i
 
 test_monotonic :: IO ()
-test_monotonic = withHeap $ \heap -> do
+test_monotonic = withHeap 1024 $ \heap -> do
   alist <- newArrayList heap 20 :: IO (ArrayList Int)
 
   for_ [1..25] $ \i ->
