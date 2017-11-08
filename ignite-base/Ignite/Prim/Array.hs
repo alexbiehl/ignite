@@ -30,6 +30,17 @@ instance Layout (Array elem) where
   poke op off a = poke (castPtr op) off (getArray a)
   {-# INLINE poke #-}
 
+arrayHeaderSize :: Int
+arrayHeaderSize = size (Proxy :: Proxy Int)
+
+arraySize :: Layout elem => Proxy elem -> Int -> Int
+arraySize elem n = arrayHeaderSize + n * size elem
+
+arrayUnsafeFromPtr :: PrimMonad m => Ptr a -> Int -> m (Array elem)
+arrayUnsafeFromPtr op n = do
+  poke (castPtr op) 0 n
+  return (Array (castPtr op))
+
 -- | Returns the length of the 'Array'. This is a constant time operation.
 arrayLength :: PrimMonad m => Array elem -> m Int
 arrayLength (Array op) = peek (castPtr op) 0

@@ -115,3 +115,6 @@ set
 set (Struct op) _ a = poke (castPtr op) offset a
   where
     offset = fieldOffset (Proxy :: Proxy field) (Proxy :: Proxy (Struct fields))
+
+unsafeFromPtr :: Ptr a -> Struct fields
+unsafeFromPtr op = Struct (castPtr op)

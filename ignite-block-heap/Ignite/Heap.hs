@@ -19,6 +19,7 @@ import Ignite.Layout
 import Ignite.Prim.Array
 import Ignite.Prim.Struct
 
+import Control.Exception
 import Control.Monad.Primitive
 import Data.IORef
 import Data.Primitive.ByteArray
@@ -30,51 +31,110 @@ import Foreign.Ptr
 import qualified Foreign.Storable as Storable
 import Data.Word
 
-type BlockLayout =
-  Struct '[ "nextBlock" := Ptr Word8 ]
+-- | Memory is allocated from 'Block's. 'Block's are chained through
+-- the 'nextBlock' field. This is a newtype since GHC doesn't like
+-- infinite type synonyms.
+newtype Block = Block { getBlock :: Struct '[ "nextBlock" := Block ] }
+
+instance Layout Block where
+  type Rep Block = Ptr (Struct '[ "nextBlock" := Block ])
+  size _ = size (Proxy :: Proxy (Rep Block))
+  peek op off = fmap Block (peek (castPtr op) off)
+  poke op off a = poke (castPtr op) off (getBlock a)
+
+nullBlock :: Block
+nullBlock = Block (unsafeFromPtr nullPtr)
+
+blockHeaderSize :: Int
+blockHeaderSize =
+  -- FIXME: find a way to get to the type of a Block
+  structSize (Proxy :: Proxy (Struct '[ "nextBlock" := Block ]))
+
+-- | We want to allocate new memory through malloc or the like
+-- so we need a way to cast a raw pointer to something which looks
+-- like a block. Hopefully op is big enough to hold the nextBlock
+-- pointer!
+unsafeBlockFromPointer
+  :: PrimMonad m
+  => Ptr a
+  -> Block
+  -> m Block
+unsafeBlockFromPointer op nextBlock = do
+  set block #nextBlock nextBlock
+  return (Block block)
+  where
+    block = unsafeFromPtr op
+
+blockRawMemory :: Block -> Ptr Word8
+blockRawMemory (Block (Struct block)) =
+  block `plusPtr` blockHeaderSize
 
 type Allocator =
-  Struct '[ "nextFree"   := Ptr Word8
-          , "endFree"    := Ptr Word8
-          , "blockSize"  := Int
-          , "firstBlock" := BlockLayout
+  Struct '[ "hp"        := Ptr Word8
+          , "hpLim"     := Ptr Word8
+          , "blockSize" := Int
+          , "blocks"    := Block
           ]
 
-allocBlock :: PrimMonad m => Int -> m (Ptr Word8)
-allocBlock size = do
-  unsafeIOToPrim (mallocBytes (size + blockLayoutSize))
-  where
-    blockLayoutSize = structSize (Proxy :: Proxy BlockLayout)
+data OutOfMemoryException = OutOfMemoryException
+  deriving (Eq, Show)
 
-initAllocator
-  :: forall a m . PrimMonad m
+instance Exception OutOfMemoryException
+
+allocatorSize :: Int
+allocatorSize = structSize (Proxy :: Proxy Allocator)
+
+allocRawMemory :: PrimMonad m => Int -> m (Ptr Word8)
+allocRawMemory size = unsafeIOToPrim $ do
+  op <- mallocBytes size
+  if op == nullPtr
+    then throwIO OutOfMemoryException
+    else return op
+
+-- | Take a bootstrap 'Block' and put the allocator in the first bytes the
+-- blocks memory.
+bootstrapAllocator
+  :: PrimMonad m
   => Int
-  -> Ptr a
+  -> Block
   -> m Allocator
-initAllocator blockSize op = do
-  set blockLayout #nextBlock nullPtr
-
-  set allocator #nextFree   firstFreeByte
-  set allocator #endFree    (castPtr op `plusPtr` blockSize)
-  set allocator #blockSize  blockSize
-  set allocator #firstBlock blockLayout
+bootstrapAllocator blockSize block = do
+  set allocator #hp    (blockRawMemory block `plusPtr` allocatorSize)
+  set allocator #hpLim (blockRawMemory block `plusPtr` (blockSize - blockHeaderSize))
+  set allocator #blockSize blockSize
+  set allocator #blocks block
   return allocator
   where
-    blockLayoutSize = structSize (Proxy :: Proxy BlockLayout)
-    blockLayout = Struct (castPtr op)
+    allocator = unsafeFromPtr (blockRawMemory block)
 
-    allocatorSize = structSize (Proxy :: Proxy Allocator)
-    allocator = Struct (castPtr op `plusPtr` blockLayoutSize) :: Allocator
+-- | The current block is full, allocate a new one and chain the old
+-- ones to it. We explicitly pass HpAlloc here as we want to be able
+-- to allocate more than blocksize if necessary.
+allocateNewBlock :: PrimMonad m => Allocator -> Int -> m (Ptr Word8)
+allocateNewBlock allocator hpAlloc = do
+  blockMem  <- allocRawMemory hpAlloc
+  blocks    <- get allocator #blocks
+  newBlock  <- unsafeBlockFromPointer blockMem blocks
 
-    firstFreeByte = op `plusPtr` (allocatorSize + blockLayoutSize)
-
-withHeap :: PrimMonad m => Int -> (Heap m root -> m a) -> m a
-withHeap blockSize f = do
-  firstBlock <- allocBlock blockSize
-  allocator  <- initAllocator blockSize firstBlock
-  f (Heap allocator)
+  let hp = blockRawMemory newBlock
+  set allocator #hp     hp
+  set allocator #hpLim  (hp `plusPtr` (hpAlloc - blockHeaderSize))
+  set allocator #blocks newBlock
+  return hp
 
 newtype Heap (m :: * -> *) root = Heap { getHeap :: Allocator }
+
+alloc :: PrimMonad m => Allocator -> Int -> m (Ptr Word8)
+alloc allocator hpAlloc = do
+  hp    <- get allocator #hp
+  hpLim <- get allocator #hpLim
+  if hp `plusPtr` hpAlloc >= hpLim
+    then do blockSize <- get allocator #blockSize
+            allocateNewBlock
+              allocator (if hpAlloc > blockSize - blockHeaderSize
+                          then hpAlloc + blockHeaderSize else blockSize)
+    else do set allocator #hp (hp `plusPtr` hpAlloc)
+            return (hp `plusPtr` hpAlloc)
 
 allocStruct
   :: forall m struct fields root .
@@ -85,29 +145,12 @@ allocStruct
   => Heap m root
   -> Proxy (Struct fields)
   -> m (Struct fields)
-allocStruct (Heap allocator) _ = do
-  nextFree <- get allocator #nextFree
-  endFree  <- get allocator #endFree
-
-  op <- if nextFree `plusPtr` size >= endFree
-        then do blockSize <- get allocator #blockSize
-                newBlock  <- allocBlock (max size blockSize)
-                let newBlockLayout = Struct (castPtr newBlock) :: BlockLayout
-                Struct firstBlock <- get allocator #firstBlock :: m BlockLayout
-                set newBlockLayout #nextBlock (castPtr firstBlock)
-                set allocator #firstBlock newBlockLayout
-                let freeSpace = newBlock `plusPtr` blockLayoutSize
-                set allocator #nextFree (freeSpace `plusPtr` size)
-                set allocator #endFree (newBlock `plusPtr` blockSize)
-                return freeSpace
-        else do set allocator #nextFree (nextFree `plusPtr` size)
-                return nextFree
-
-  return (Struct (castPtr op))
+allocStruct (Heap allocator) struct = do
+  hp <- alloc allocator hpAlloc
+  return (unsafeFromPtr hp)
   where
-    size = structSize (Proxy :: Proxy struct)
-
-    blockLayoutSize = structSize (Proxy :: Proxy BlockLayout)
+    hpAlloc :: Int
+    hpAlloc = structSize struct
 
 allocArray
   :: forall m elem root .
@@ -118,26 +161,19 @@ allocArray
   -> Proxy elem
   -> Int
   -> m (Array elem)
-allocArray (Heap allocator) _ n = do
-  nextFree <- get allocator #nextFree
-  endFree  <- get allocator #endFree
-
-  op <- if nextFree `plusPtr` bytes >= endFree
-        then do blockSize <- get allocator #blockSize
-                newBlock  <- allocBlock (max bytes blockSize)
-                let newBlockLayout = Struct (castPtr newBlock) :: BlockLayout
-                Struct firstBlock <- get allocator #firstBlock
-                set newBlockLayout #nextBlock (castPtr firstBlock)
-                set allocator #firstBlock newBlockLayout
-                let freeSpace = newBlock `plusPtr` blockLayoutSize
-                set allocator #nextFree (freeSpace `plusPtr` bytes)
-                set allocator #endFree (newBlock `plusPtr` blockSize)
-                return freeSpace
-        else do set allocator #nextFree (nextFree `plusPtr` bytes)
-                return nextFree
-
-  unsafeIOToPrim (Storable.poke (castPtr op) (n :: Int))
-  return (Array (castPtr op))
+allocArray (Heap allocator) elem n = do
+  hp <- alloc allocator hpAlloc
+  arrayUnsafeFromPtr hp n
   where
-    bytes = size (Proxy :: Proxy Int) + n * size (Proxy :: Proxy elem)
-    blockLayoutSize = structSize (Proxy :: Proxy BlockLayout)
+    hpAlloc = arraySize elem n
+
+withHeap :: PrimMonad m => Int -> (Heap m root -> m a) -> m a
+withHeap blockSize f = do
+  let blockSize' = max blockSize blockHeaderSize
+  op    <- allocRawMemory blockSize'
+  block <- unsafeBlockFromPointer op nullBlock
+  allocator <- bootstrapAllocator blockSize' block
+  r <- f (Heap allocator)
+  -- FIXME: deallocate the heap
+  -- FIXME: exception safety
+  return r
