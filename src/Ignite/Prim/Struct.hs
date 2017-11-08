@@ -86,22 +86,6 @@ instance (label ~ field) => IsLabel (field :: Symbol) (Selector label) where
 data Selector (field :: Symbol) = Selector
 
 -- | Reads the value of a field.
-readField
-  :: forall field fields fieldType struct m .
-     ( PrimMonad m
-     , struct ~ Struct fields
-     , FieldOffset field struct
-     , fieldType ~ FieldType field struct
-     , Layout fieldType
-     )
-  => Struct fields
-  -> Selector field
-  -> m (FieldType field struct)      -- ^ the read value
-readField (Struct op) _ = peek (castPtr op) offset
-  where
-    offset = fieldOffset (Proxy :: Proxy field) (Proxy :: Proxy struct)
-
--- | Reads the value of a field.
 get
   :: forall field fields fieldType struct m .
      ( PrimMonad m
@@ -117,22 +101,6 @@ get (Struct op) _ = peek (castPtr op) offset
   where
     offset = fieldOffset (Proxy :: Proxy field) (Proxy :: Proxy struct)
 
-
-writeField
-  :: forall field fields fieldType m .
-     ( PrimMonad m
-     , FieldOffset field (Struct fields)
-     , Layout (FieldType field (Struct fields))
-     , fieldType ~ FieldType field (Struct fields)
-     )
-  => Struct fields                    -- ^ struct to which to write
-  -> Selector field                   -- ^ field selector
-  -> fieldType  -- ^ the value to be written
-  -> m ()
-writeField (Struct op) _ a = poke (castPtr op) offset a
-  where
-    offset = fieldOffset (Proxy :: Proxy field) (Proxy :: Proxy (Struct fields))
-
 set
   :: forall field fields fieldType m .
      ( PrimMonad m
@@ -140,9 +108,9 @@ set
      , Layout (FieldType field (Struct fields))
      , fieldType ~ FieldType field (Struct fields)
      )
-  => Struct fields                    -- ^ struct to which to write
-  -> Selector field                   -- ^ field selector
-  -> fieldType  -- ^ the value to be written
+  => Struct fields  -- ^ struct to which to write
+  -> Selector field -- ^ field selector
+  -> fieldType      -- ^ the value to be written
   -> m ()
 set (Struct op) _ a = poke (castPtr op) offset a
   where

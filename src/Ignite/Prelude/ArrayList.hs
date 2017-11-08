@@ -36,22 +36,22 @@ newArrayList
 newArrayList heap capacity = do
   arrayList <- allocStruct heap (Proxy :: Proxy (ArrayList elem))
   array     <- allocArray heap (Proxy :: Proxy elem) capacity
-  writeField arrayList #size  0
-  writeField arrayList #elems array
+  set arrayList #size  0
+  set arrayList #elems array
   return arrayList
 
 arrayListSize
   :: forall m elem root . (PrimMonad m)
   => ArrayList elem
   -> m Int
-arrayListSize alist = readField alist #size
+arrayListSize alist = get alist #size
 
 arrayListCapacity
   :: forall m elem root . (PrimMonad m)
   => ArrayList elem
   -> m Int
 arrayListCapacity alist = do
-  arr <- readField alist #elems
+  arr <- get alist #elems
   arrayLength arr
 
 arrayListAppend
@@ -63,11 +63,11 @@ arrayListAppend
 arrayListAppend heap alist elem = do
   size <- arrayListSize alist
   cap  <- arrayListCapacity alist
-  arr  <- readField alist #elems
+  arr  <- get alist #elems
 
   if size < cap
     then do arrayUnsafeWrite arr size elem
-            writeField alist #size (size + 1)
+            set alist #size (size + 1)
     else arrayListResize heap alist >> arrayListAppend heap alist elem
 
 arrayListResize
@@ -78,9 +78,9 @@ arrayListResize
 arrayListResize heap alist = do
   size <- arrayListSize alist
   newArr <- allocArray heap (Proxy :: Proxy elem) (2 * size)
-  oldArr <- readField alist #elems
+  oldArr <- get alist #elems
   unsafeArrayCopy oldArr 0 newArr 0 size
-  writeField alist #elems newArr
+  set alist #elems newArr
 
 arrayListIndex
   :: forall m elem . (PrimMonad m, Layout elem)
@@ -88,5 +88,5 @@ arrayListIndex
   -> Int
   -> m elem
 arrayListIndex alist i = do
-  arr  <- readField alist #elems
+  arr <- get alist #elems
   arrayUnsafeIndex arr i
