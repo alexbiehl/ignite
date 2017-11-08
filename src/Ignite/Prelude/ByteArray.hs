@@ -1,7 +1,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Ignite.ByteArray where
+module Ignite.Prelude.ByteArray where
 
-import Ignite.Array
+import Ignite.Prim.Array
 
 import Control.Monad.Primitive
 import Data.Word (Word8)

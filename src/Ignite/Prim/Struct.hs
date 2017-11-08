@@ -6,7 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Ignite.Struct where
+module Ignite.Prim.Struct where
 
 import Ignite.Layout
 

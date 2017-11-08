@@ -15,8 +15,8 @@ module Ignite.BlockHeap (
   ) where
 
 import Ignite.Layout
-import Ignite.Array
-import Ignite.Struct
+import Ignite.Prim.Array
+import Ignite.Prim.Struct
 
 import Control.Monad.Primitive
 import Data.IORef

@@ -9,8 +9,8 @@
 module Ignite.Example where
 
 import Ignite.Layout
-import Ignite.Array
-import Ignite.Struct
+import Ignite.Prim.Array
+import Ignite.Prim.Struct
 import Ignite.BlockHeap
 
 import Control.Monad.Primitive

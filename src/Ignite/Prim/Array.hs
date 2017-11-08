@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Ignite.Array where
+module Ignite.Prim.Array where
 
 import Ignite.Layout
 

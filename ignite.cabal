@@ -16,13 +16,15 @@ extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
 
 library
-  exposed-modules:   Ignite.Array
-                     Ignite.ByteArray
-                     Ignite.Layout
-                     Ignite.Struct
+  exposed-modules:   Ignite.Layout
+                     Ignite.Prim.Array
+                     Ignite.Prim.Struct
+                     Ignite.Prelude.ByteArray
+
                      Ignite.BlockHeap
                      Ignite.MonotonicHeap
                      Ignite.Example
+
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.10 && <4.11,
