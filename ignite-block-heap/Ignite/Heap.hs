@@ -128,13 +128,14 @@ alloc :: PrimMonad m => Allocator -> Int -> m (Ptr Word8)
 alloc allocator hpAlloc = do
   hp    <- get allocator #hp
   hpLim <- get allocator #hpLim
-  if hp `plusPtr` hpAlloc >= hpLim
+  let hp' = hp `plusPtr` hpAlloc
+  if hp' >= hpLim
     then do blockSize <- get allocator #blockSize
             allocateNewBlock
               allocator (if hpAlloc > blockSize - blockHeaderSize
                           then hpAlloc + blockHeaderSize else blockSize)
-    else do set allocator #hp (hp `plusPtr` hpAlloc)
-            return (hp `plusPtr` hpAlloc)
+    else do set allocator #hp hp'
+            return hp
 
 allocStruct
   :: forall m struct fields root .
