@@ -1,6 +1,9 @@
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
 signature Ignite.Heap where
 
+import Ignite.Layout
 import Ignite.Prim.Array
 import Ignite.Prim.Struct
 
@@ -10,13 +13,16 @@ import Data.Proxy
 data Heap (m :: * -> *) root
 
 allocStruct
-  :: PrimMonad m
+  :: ( PrimMonad m
+     , struct ~ Struct fields
+     , StructSize struct
+     )
   => Heap m root
   -> Proxy (Struct fields)
   -> m (Struct fields) 
 
 allocArray
-  :: PrimMonad m
+  :: (PrimMonad m, Layout elem)
   => Heap m root
   -> Proxy elem
   -> Int
