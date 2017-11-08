@@ -6,6 +6,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE OverloadedLabels #-}
 module Ignite.Example where
 
 import Ignite.Layout
@@ -19,12 +20,6 @@ import Data.Foldable
 
 type ArrayList elem = Struct '[ "size" := Int, "elems" := Array elem ]
 
-arrayListElemsSelector :: Selector "elems" (Array elem) (ArrayList elem)
-arrayListElemsSelector = Selector
-
-arrayListSizeSelector :: Selector "size" Int (ArrayList elem)
-arrayListSizeSelector = Selector
-
 newArrayList
   :: forall m elem root . (PrimMonad m, Layout elem)
   => Heap m root
@@ -33,22 +28,22 @@ newArrayList
 newArrayList heap capacity = do
   arrayList <- allocStruct heap (Proxy :: Proxy (ArrayList elem))
   array     <- allocArray heap (Proxy :: Proxy elem) capacity
-  writeField arrayListSizeSelector arrayList 0
-  writeField arrayListElemsSelector arrayList array
+  writeField arrayList #size 0
+  writeField arrayList #elems array
   return arrayList
 
 arrayListSize
   :: forall m elem root . (PrimMonad m)
   => ArrayList elem
   -> m Int
-arrayListSize alist = readField arrayListSizeSelector alist
+arrayListSize alist = readField alist #size
 
 arrayListCapacity
   :: forall m elem root . (PrimMonad m)
   => ArrayList elem
   -> m Int
 arrayListCapacity alist = do
-  arr <- readField arrayListElemsSelector alist
+  arr <- readField alist #elems
   arrayLength arr
 
 arrayListAppend
@@ -60,11 +55,11 @@ arrayListAppend
 arrayListAppend heap alist elem = do
   size <- arrayListSize alist
   cap  <- arrayListCapacity alist
-  arr  <- readField arrayListElemsSelector alist
+  arr  <- readField alist #elems
 
   if size < cap
     then do arrayUnsafeWrite arr size elem
-            writeField arrayListSizeSelector alist (size + 1)
+            writeField alist #size (size + 1)
     else arrayListResize heap alist >> arrayListAppend heap alist elem
 
 arrayListResize
@@ -75,9 +70,9 @@ arrayListResize
 arrayListResize heap alist = do
   size <- arrayListSize alist
   newArr <- allocArray heap (Proxy :: Proxy elem) (2 * size)
-  oldArr <- readField arrayListElemsSelector alist
+  oldArr <- readField alist #elems
   unsafeArrayCopy oldArr 0 newArr 0 size
-  writeField arrayListElemsSelector alist newArr
+  writeField alist #elems newArr
 
 arrayListIndex
   :: forall m elem . (PrimMonad m, Layout elem)
@@ -85,7 +80,7 @@ arrayListIndex
   -> Int
   -> m elem
 arrayListIndex alist i = do
-  arr  <- readField arrayListElemsSelector alist
+  arr  <- readField alist #elems
   arrayUnsafeIndex arr i
 
 test_monotonic :: IO ()
@@ -100,14 +95,14 @@ test_monotonic = withHeap 1024 $ \heap -> do
     print x
 
 test :: ArrayList elem -> IO (Array elem)
-test = readField arrayListElemsSelector
+test alist = readField alist #elems
 
 test1 :: ArrayList Int -> IO (Array Int)
 test1 = test
 
 test2 :: Layout elem => ArrayList elem -> elem -> IO ()
 test2 alist elem = do
-  elems <- readField arrayListElemsSelector alist
+  elems <- readField alist #elems
   arrayUnsafeWrite elems 0 elem
 
 test3 :: ArrayList Int -> Int -> IO ()

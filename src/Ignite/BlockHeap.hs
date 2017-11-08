@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE OverloadedLabels #-}
 module Ignite.BlockHeap (
     Heap
   , withHeap
@@ -32,7 +33,7 @@ import Data.Word
 type BlockLayout =
   Struct '[ "nextBlock" := Ptr Word8 ]
 
-nextBlockSel :: Selector "nextBlock" (Ptr Word8) BlockLayout
+nextBlockSel :: Selector "nextBlock"
 nextBlockSel = Selector
 
 type Allocator =
@@ -42,16 +43,16 @@ type Allocator =
           , "firstBlock" := BlockLayout
           ]
 
-nextFreeSel :: Selector "nextFree" (Ptr Word8) Allocator
+nextFreeSel :: Selector "nextFree"
 nextFreeSel = Selector
 
-endFreeSel :: Selector "endFree" (Ptr Word8) Allocator
+endFreeSel :: Selector "endFree"
 endFreeSel = Selector
 
-blockSizeSel :: Selector "blockSize" Int Allocator
+blockSizeSel :: Selector "blockSize"
 blockSizeSel = Selector
 
-firstBlockSel :: Selector "firstBlock" BlockLayout Allocator
+firstBlockSel :: Selector "firstBlock"
 firstBlockSel = Selector
 
 allocBlock :: PrimMonad m => Int -> m (Ptr Word8)
@@ -66,11 +67,12 @@ initAllocator
   -> Ptr a
   -> m Allocator
 initAllocator blockSize op = do
-  writeField nextBlockSel blockLayout nullPtr
-  writeField nextFreeSel  allocator firstFreeByte
-  writeField endFreeSel   allocator (castPtr op `plusPtr` blockSize)
-  writeField blockSizeSel allocator blockSize
-  writeField firstBlockSel  allocator blockLayout
+  writeField blockLayout #nextBlock nullPtr
+
+  writeField allocator #nextFree   firstFreeByte
+  writeField allocator #endFree    (castPtr op `plusPtr` blockSize)
+  writeField allocator #blockSize  blockSize
+  writeField allocator #firstBlock blockLayout
   return allocator
   where
     blockLayoutSize = structSize (Proxy :: Proxy BlockLayout)
@@ -99,21 +101,21 @@ allocStruct
   -> Proxy (Struct fields)
   -> m (Struct fields)
 allocStruct (Heap allocator) _ = do
-  nextFree <- readField nextFreeSel allocator
-  endFree  <- readField endFreeSel  allocator
+  nextFree <- readField allocator #nextFree
+  endFree  <- readField allocator #endFree
 
   op <- if nextFree `plusPtr` size >= endFree
-        then do blockSize <- readField blockSizeSel allocator
+        then do blockSize <- readField allocator #blockSize
                 newBlock  <- allocBlock (max size blockSize)
                 let newBlockLayout = Struct (castPtr newBlock) :: BlockLayout
-                Struct firstBlock <- readField firstBlockSel allocator
-                writeField nextBlockSel newBlockLayout (castPtr firstBlock)
-                writeField firstBlockSel allocator newBlockLayout
+                Struct firstBlock <- readField allocator #firstBlock :: m BlockLayout
+                writeField newBlockLayout #nextBlock (castPtr firstBlock)
+                writeField allocator #firstBlock newBlockLayout
                 let freeSpace = newBlock `plusPtr` blockLayoutSize
-                writeField nextFreeSel allocator (freeSpace `plusPtr` size)
-                writeField endFreeSel  allocator (newBlock `plusPtr` blockSize)
+                writeField allocator #nextFree (freeSpace `plusPtr` size)
+                writeField allocator #endFree (newBlock `plusPtr` blockSize)
                 return freeSpace
-        else do writeField nextFreeSel allocator (nextFree `plusPtr` size)
+        else do writeField allocator #nextFree (nextFree `plusPtr` size)
                 return nextFree
 
   return (Struct (castPtr op))
@@ -132,21 +134,21 @@ allocArray
   -> Int
   -> m (Array elem)
 allocArray (Heap allocator) _ n = do
-  nextFree <- readField nextFreeSel allocator
-  endFree  <- readField endFreeSel  allocator
+  nextFree <- readField allocator #nextFree
+  endFree  <- readField allocator #endFree
 
   op <- if nextFree `plusPtr` bytes >= endFree
-        then do blockSize <- readField blockSizeSel allocator
+        then do blockSize <- readField allocator #blockSize
                 newBlock  <- allocBlock (max bytes blockSize)
                 let newBlockLayout = Struct (castPtr newBlock) :: BlockLayout
-                Struct firstBlock <- readField firstBlockSel allocator
-                writeField nextBlockSel newBlockLayout (castPtr firstBlock)
-                writeField firstBlockSel allocator newBlockLayout
+                Struct firstBlock <- readField allocator #firstBlock
+                writeField newBlockLayout #nextBlock (castPtr firstBlock)
+                writeField allocator #firstBlock newBlockLayout
                 let freeSpace = newBlock `plusPtr` blockLayoutSize
-                writeField nextFreeSel allocator (freeSpace `plusPtr` bytes)
-                writeField endFreeSel  allocator (newBlock `plusPtr` blockSize)
+                writeField allocator #nextFree (freeSpace `plusPtr` bytes)
+                writeField allocator #endFree (newBlock `plusPtr` blockSize)
                 return freeSpace
-        else do writeField nextFreeSel allocator (nextFree `plusPtr` bytes)
+        else do writeField allocator #nextFree (nextFree `plusPtr` bytes)
                 return nextFree
 
   unsafeIOToPrim (Storable.poke (castPtr op) (n :: Int))
