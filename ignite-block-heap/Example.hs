@@ -7,7 +7,7 @@
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedLabels #-}
-module Ignite.Example where
+module Main where
 
 import Ignite.Layout
 import Ignite.Prim.Array
@@ -107,3 +107,6 @@ test2 alist elem = do
 
 test3 :: ArrayList Int -> Int -> IO ()
 test3 = test2
+
+main :: IO ()
+main = test_monotonic

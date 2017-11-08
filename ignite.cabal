@@ -76,6 +76,6 @@ library
   
 executable ignite-block-heap-example
   main-is:             Example.hs
-  build-depends:       ignite, ignite-prelude, ignite-block-heap
+  build-depends:       base, primitive, ignite, ignite-prelude, ignite-block-heap
   hs-source-dirs:      ignite-block-heap
   default-language:    Haskell2010
