@@ -13,17 +13,20 @@ maintainer:          abiehl@novomind.com
 -- category:            
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
-cabal-version:       >=1.10
+cabal-version:       >=2.0
 
 library
   exposed-modules:   Ignite.Layout
                      Ignite.Prim.Array
                      Ignite.Prim.Struct
+                     Ignite.Prelude.ArrayList
                      Ignite.Prelude.ByteArray
 
                      Ignite.BlockHeap
                      Ignite.MonotonicHeap
                      Ignite.Example
+
+  signatures:        Ignite.Heap
 
   -- other-modules:       
   -- other-extensions:    

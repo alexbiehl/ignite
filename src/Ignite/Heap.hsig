@@ -1,0 +1,23 @@
+{-# LANGUAGE KindSignatures #-}
+signature Ignite.Heap where
+
+import Ignite.Prim.Array
+import Ignite.Prim.Struct
+
+import Control.Monad.Primitive
+import Data.Proxy
+
+data Heap (m :: * -> *) root
+
+allocStruct
+  :: PrimMonad m
+  => Heap m root
+  -> Proxy (Struct fields)
+  -> m (Struct fields) 
+
+allocArray
+  :: PrimMonad m
+  => Heap m root
+  -> Proxy elem
+  -> Int
+  -> m (Array elem)
