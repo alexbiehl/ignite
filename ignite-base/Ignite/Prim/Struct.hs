@@ -20,6 +20,15 @@ import GHC.OverloadedLabels
 
 newtype Struct (fields :: [Type]) = Struct { getStruct :: Ptr (Struct fields) }
 
+nullStruct :: Struct fields
+nullStruct = Struct nullPtr
+
+isNullStruct :: Struct fields -> Bool
+isNullStruct s = s `equalsIdentity` nullStruct
+
+equalsIdentity :: Struct fields -> Struct fields -> Bool
+equalsIdentity (Struct op1) (Struct op2) = op1 == op2
+
 instance Layout (Struct fields) where
 
   type Rep (Struct fields) = Struct fields

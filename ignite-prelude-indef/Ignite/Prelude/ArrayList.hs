@@ -22,12 +22,6 @@ import Data.Proxy
 
 type ArrayList elem = Struct '[ "size" := Int, "elems" := Array elem ]
 
-arrayListElemsSelector :: Selector "elems"
-arrayListElemsSelector = Selector
-
-arrayListSizeSelector :: Selector "size"
-arrayListSizeSelector = Selector
-
 newArrayList
   :: forall m elem root . (PrimMonad m, Layout elem)
   => Heap m root

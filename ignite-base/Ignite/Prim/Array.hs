@@ -104,3 +104,20 @@ unsafeArrayCopy (Array src) srcOff (Array dest) destOff len =
     elemSize = size (Proxy :: Proxy elem)
     lenSize  = size (Proxy :: Proxy Int)
 {-# INLINE unsafeArrayCopy #-}
+
+arrayForeach
+  :: forall m elem . (PrimMonad m, Layout elem)
+  => Array elem
+  -> (Int -> elem -> m elem)
+  -> m ()
+arrayForeach array f = do
+  len <- arrayLength array
+  go 0 len
+  where
+    go i n
+      | i < n = do elem  <- arrayUnsafeIndex array i
+                   elem' <- f i elem
+                   arrayUnsafeWrite array i elem'
+                   go (i + 1) n
+      | otherwise = return ()
+{-# INLINE arrayForeach #-}

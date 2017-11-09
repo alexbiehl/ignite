@@ -33,7 +33,9 @@ library ignite-block-heap
 library ignite-prelude-indef
   exposed-modules:   Ignite.Prelude.ArrayList
                      Ignite.Prelude.ByteArray
-
+                     Ignite.Prelude.Hashing
+                     Ignite.Prelude.HashMap
+                     
   -- other-modules:
   -- other-extensions:
   build-depends:       base >=4.10 && <4.11,
@@ -61,11 +63,14 @@ library
 
                        Ignite.BlockHeap,
                        Ignite.BlockHeap.Prelude.ArrayList,
-                       Ignite.BlockHeap.Prelude.ByteArray
-
+                       Ignite.BlockHeap.Prelude.ByteArray,
+                       Ignite.BlockHeap.Prelude.HashMap
+                       
   mixins:              ignite-prelude-indef (Ignite.Prelude.ArrayList as Ignite.BlockHeap.Prelude.ArrayList)
                          requires (Ignite.Heap as Ignite.BlockHeap),
                        ignite-prelude-indef (Ignite.Prelude.ByteArray as Ignite.BlockHeap.Prelude.ByteArray)
+                         requires (Ignite.Heap as Ignite.BlockHeap),
+                       ignite-prelude-indef (Ignite.Prelude.HashMap as Ignite.BlockHeap.Prelude.HashMap)
                          requires (Ignite.Heap as Ignite.BlockHeap)
 
   -- other-modules:
