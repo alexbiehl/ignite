@@ -40,7 +40,8 @@ library ignite-prelude-indef
   -- other-extensions:
   build-depends:       base >=4.10 && <4.11,
                        primitive,
-                       ignite-base, ignite-heap
+                       ignite-base, ignite-heap,
+                       hashable
   hs-source-dirs:      ignite-prelude-indef
   default-language:    Haskell2010
 

@@ -14,19 +14,26 @@ import Ignite.Prim.Array
 import Ignite.Prim.Struct
 import Ignite.BlockHeap
 import Ignite.BlockHeap.Prelude.ArrayList
+import Ignite.BlockHeap.Prelude.HashMap
 
 import Control.Monad.Primitive
 import Data.Proxy
 import Data.Foldable
 
+
 test_monotonic :: IO ()
-test_monotonic = withHeap 1024 $ \heap -> do
+test_monotonic = withHeap 2048 $ \heap -> do
+
+  hm <- newHashMap heap 16 0.75 :: IO (HashMap Int Int)
   alist <- newArrayList heap 20 :: IO (ArrayList Int)
 
-  for_ [1..25] $ \i ->
+  for_ [1..25] $ \i -> do
+    insert heap hm i i
     arrayListAppend heap alist i
 
   for_ [0..24] $ \i -> do
+    y <- Ignite.BlockHeap.Prelude.HashMap.lookup hm i
+    print y
     x <- arrayListIndex alist i
     print x
 

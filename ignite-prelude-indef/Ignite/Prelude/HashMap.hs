@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
@@ -63,14 +64,26 @@ newHashMap heap _initialCapacity loadFactor = do
 class Equals a where
   isEqual :: PrimMonad m => a -> a -> m Bool
 
-put
-  :: forall m root k v . (PrimMonad m, Layout k, Layout v, Equals k, HashCode k)
+instance Equals Int where
+  isEqual = equalsEq
+
+equalsEq :: (Eq a, PrimMonad m) => a -> a -> m Bool
+equalsEq a b = return (a == b)
+
+insert
+  :: forall m root k v .
+     ( PrimMonad m
+     , Layout k
+     , Layout v
+     , Equals k
+     , HashCode k
+     )
   => Heap m root
   -> HashMap k v
   -> k
   -> v
   -> m ()
-put heap this k v = do
+insert heap this k v = do
   hash     <- hashWithSeed 0 k
   entries  <- get this #table
   capacity <- arrayLength entries
@@ -161,13 +174,22 @@ resize heap this newCapacity = do
 
   transfer 0
 
+  loadFactor <- get this #loadFactor
+  set this #table newTable
+  set this #threshold (round (fromIntegral newCapacity * loadFactor))
+
 lookup
-  :: forall m root k v . (PrimMonad m, Layout k, Layout v, HashCode k, Equals k)
-  => Heap m root
-  -> HashMap k v
+  :: forall m root k v .
+     ( PrimMonad m
+     , Layout k
+     , Layout v
+     , HashCode k
+     , Equals k
+     )
+  => HashMap k v
   -> k
   -> m (Maybe v)
-lookup heap this k = do
+lookup this k = do
   hash     <- hashWithSeed 0 k
   entries  <- get this #table
   capacity <- arrayLength entries
@@ -175,7 +197,7 @@ lookup heap this k = do
 
   let
     loop :: Entry k v -> m (Maybe v)
-    loop e
+    loop !e
       | isNullStruct e = return Nothing
       | otherwise      = do
           entryHash <- get e #hash
@@ -183,10 +205,10 @@ lookup heap this k = do
 
           if entryHash == hash
             then do key <- get e #key
-                    val <- get e #value
                     eq  <- isEqual k key
                     if eq
-                      then return (Just val)
+                      then do val <- get e #value
+                              return (Just val)
                       else do next <- get e #next
                               loop (unsafeFromPtr next)
             else do next <- get e #next
